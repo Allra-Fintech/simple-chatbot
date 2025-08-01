@@ -137,3 +137,7 @@ cython_debug/
 
 # claude code
 .claude/
+CLAUDE.md
+
+# ChromaDB
+chroma_db/
