@@ -1,183 +1,79 @@
 #!/usr/bin/env python3
+"""
+Simple demo showing RAG (Retrieval Augmented Generation) and Function Calling
+"""
 
 import ollama
-
-try:
-    from .function_agent import FunctionCallerAgent
-except ImportError:
-    FunctionCallerAgent = None
-
-try:
-    from .rag_agent import RAGAgent
-except ImportError:
-    RAGAgent = None
+from .function_agent import simple_function_call
+from .rag_agent import simple_rag_query
 
 
-class SimpleChatbot:
-    def __init__(
-        self,
-        model_name: str = "llama3.2:3b",
-        use_function_agent: bool = True,
-        use_rag_agent: bool = False,
-    ):
-        self.model_name = model_name
+def demo_function_calling():
+    """Demo: Function calling for time and math"""
+    print("\n=== FUNCTION CALLING DEMO ===")
+    print("Shows how LLM can call external functions")
 
-        # Initialize function calling agent
-        self.use_function_agent = use_function_agent
-        if use_function_agent and FunctionCallerAgent:
-            self.function_agent = FunctionCallerAgent(model_name)
-        else:
-            self.function_agent = None
+    queries = [
+        "What time is it?",
+        "Calculate 15 * 7 + 23",
+    ]
 
-        # Initialize RAG agent
-        self.use_rag_agent = use_rag_agent
-        if use_rag_agent and RAGAgent:
-            self.rag_agent = RAGAgent(model_name)
-        else:
-            self.rag_agent = None
+    for query in queries:
+        print(f"\nUser: {query}")
+        response = simple_function_call(query)
+        print(f"Bot: {response}")
 
-    def generate_response(self, user_query: str) -> str:
-        """Generate response with optional function calling and RAG"""
 
-        # Use RAG agent if enabled
-        if self.use_rag_agent and self.rag_agent:
-            try:
-                return self.rag_agent.generate_response(user_query)
-            except Exception as e:
-                print(
-                    f"RAG agent failed: {e}, falling back to function agent or regular chat"
-                )
+def demo_rag():
+    """Demo: RAG with document retrieval"""
+    print("\n=== RAG DEMO ===")
+    print("Shows how LLM can answer based on your documents")
 
-        # Use function calling agent if enabled
-        if self.use_function_agent and self.function_agent:
-            try:
-                return self.function_agent.invoke(user_query)
-            except Exception as e:
-                print(f"Function agent failed: {e}, using regular chat")
+    # Add some sample documents
+    print("\nAdding sample documents...")
+    docs = [
+        "Python is a programming language created by Guido van Rossum in 1991.",
+        "Machine learning is a subset of AI that learns from data.",
+        "ChromaDB is a vector database for AI applications.",
+    ]
 
-        # Fallback to regular chat
-        try:
-            response = ollama.chat(
-                model=self.model_name,
-                messages=[{"role": "user", "content": user_query}],
-            )
-            return response["message"]["content"]
-        except Exception as e:
-            return f"Error generating response: {str(e)}"
+    for doc in docs:
+        print(f"Added: {doc[:50]}...")
 
-    def chat_loop(self):
-        """Interactive chat loop"""
-        # Build status message
-        features = []
-        if self.use_rag_agent:
-            features.append("RAG")
-        if self.use_function_agent:
-            features.append("function calling")
+    # Query the documents
+    queries = [
+        "Who created Python?",
+        "What is machine learning?",
+        "Tell me about ChromaDB",
+    ]
 
-        if features:
-            agent_status = f"with {' and '.join(features)}"
-        else:
-            agent_status = "in basic mode"
-
-        print(f"Simple Chatbot initialized {agent_status}!")
-        print("Commands: 'quit' to exit")
-
-        if self.use_rag_agent and self.rag_agent:
-            print(
-                "RAG commands: 'add_doc <text>', 'add_file <path>', 'list_docs', 'clear_docs'"
-            )
-
-        while True:
-            user_input = input("\nYou: ").strip()
-
-            if user_input.lower() == "quit":
-                print("Goodbye!")
-                break
-            elif (
-                self.use_rag_agent
-                and self.rag_agent
-                and self._handle_rag_commands(user_input)
-            ):
-                continue
-            else:
-                response = self.generate_response(user_input)
-                print(f"Bot: {response}")
-
-    def _handle_rag_commands(self, user_input: str) -> bool:
-        """Handle RAG-specific commands. Returns True if command was handled."""
-        if not (self.use_rag_agent and self.rag_agent):
-            return False
-
-        if user_input.startswith("add_doc "):
-            doc_text = user_input[8:].strip()
-            if doc_text:
-                try:
-                    doc_id = self.rag_agent.add_document(doc_text)
-                    print(f"✓ Document added with ID: {doc_id}")
-                except Exception as e:
-                    print(f"✗ Error adding document: {e}")
-            else:
-                print("Usage: add_doc <document text>")
-            return True
-
-        elif user_input.startswith("add_file "):
-            file_path = user_input[9:].strip()
-            if file_path:
-                try:
-                    doc_id = self.rag_agent.add_document_from_file(file_path)
-                    print(f"✓ File added with ID: {doc_id}")
-                except Exception as e:
-                    print(f"✗ Error adding file: {e}")
-            else:
-                print("Usage: add_file <file path>")
-            return True
-
-        elif user_input == "list_docs":
-            docs = self.rag_agent.list_documents()
-            if docs:
-                print(f"\n📚 Documents in collection ({len(docs)} total):")
-                for i, doc in enumerate(docs, 1):
-                    source = doc["metadata"].get("source", "unknown")
-                    print(f"  {i}. ID: {doc['id']}, Source: {source}")
-                    print(f"     Preview: {doc['content'][:100]}...")
-            else:
-                print("No documents in collection")
-            return True
-
-        elif user_input == "clear_docs":
-            if self.rag_agent.clear_collection():
-                print("✓ Document collection cleared")
-            else:
-                print("✗ Error clearing collection")
-            return True
-
-        return False
+    for query in queries:
+        print(f"\nUser: {query}")
+        response = simple_rag_query(query, docs)
+        print(f"Bot: {response}")
 
 
 def main():
-    print("Initializing Simple Chatbot with Ollama...")
+    """Main demo runner"""
+    print("RAG and Function Calling Demo")
+    print("=" * 40)
 
-    # Check if Ollama is running
+    # Check Ollama connection
     try:
         ollama.list()
+        print("✓ Ollama connected")
     except Exception:
-        print("Error: Could not connect to Ollama. Make sure Ollama is running.")
-        print("Install Ollama from https://ollama.ai and run: ollama serve")
+        print("✗ Ollama not running. Start with: ollama serve")
         return
 
-    # Ask user for RAG preference
-    use_rag = False
-    if RAGAgent:
-        print("\nWould you like to enable RAG (Retrieval Augmented Generation)? (y/n)")
-        rag_choice = input().strip().lower()
-        use_rag = rag_choice in ["y", "yes"]
-    elif input(
-        "\nRAG dependencies not available. Continue with basic chatbot? (y/n): "
-    ).strip().lower() not in ["y", "yes"]:
-        return
+    # Run demos
+    demo_function_calling()
+    demo_rag()
 
-    chatbot = SimpleChatbot(use_rag_agent=use_rag)
-    chatbot.chat_loop()
+    print("\n=== DEMO COMPLETE ===")
+    print("This shows the basic concepts of RAG and function calling.")
+    print("RAG: Retrieves relevant documents to answer questions")
+    print("Functions: Allows LLM to call external tools (time, math, etc.)")
 
 
 if __name__ == "__main__":

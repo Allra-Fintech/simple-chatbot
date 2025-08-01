@@ -1,18 +1,14 @@
 #!/usr/bin/env python3
 """
-Main entry point for the Simple Chatbot application.
-
-This script provides a command-line interface to run the chatbot with
-various options including function calling and RAG capabilities.
+Simple entry point for RAG and Function Calling demo
 """
 
 import sys
 import os
+from src.main import main
 
 # Add src directory to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
-
-from src.main import main
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
 
 if __name__ == "__main__":
     main()
